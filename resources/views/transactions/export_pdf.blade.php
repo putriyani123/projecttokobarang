@@ -28,8 +28,8 @@
         <p><strong>Nama Pemesan:</strong> {{ $transaction->user->name ?? 'Guest' }}</p>
         <p><strong>Alamat Pengiriman:</strong> 
             @if($transaction->address)
-                {{ $transaction->address->recipient_name }} ({{ $transaction->address->phone }})<br>
-                {{ $transaction->address->address }}, {{ $transaction->address->city }}, {{ $transaction->address->province }}
+                {{ $transaction->user->name ?? 'Guest' }} (-)<br>
+                {{ $transaction->address->detail_address ?? '' }}, {{ $transaction->address->village ?? '' }}, {{ $transaction->address->district ?? '' }}, {{ $transaction->address->city ?? '' }}, {{ $transaction->address->province ?? '' }}
             @else
                 Tidak ada informasi alamat.
             @endif

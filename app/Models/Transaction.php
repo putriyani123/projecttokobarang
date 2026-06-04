@@ -17,7 +17,8 @@ class Transaction extends Model
         'status',
         'tracking_number',
         'proof_of_delivery',
-        'delivery_date'
+        'delivery_date',
+        'courier_id'
     ];
 
     // RELASI
@@ -34,5 +35,10 @@ class Transaction extends Model
     public function items()
     {
         return $this->hasMany(TransactionItem::class);
+    }
+
+    public function courier()
+    {
+        return $this->belongsTo(User::class, 'courier_id');
     }
 }

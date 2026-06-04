@@ -56,6 +56,12 @@ class CheckoutController extends Controller
         }
     }
 
+    foreach ($cart->items as $item) {
+        if ($item->qty > $item->product->stock) {
+            return response()->json(['error' => 'Maaf, stok ' . $item->product->name . ' tidak mencukupi (Sisa: ' . $item->product->stock . ')'], 400);
+        }
+    }
+
     $transaction = \App\Models\Transaction::create([
         'user_id' => auth()->id(),
         'address_id' => $request->address_id ?? 1, // Default address for now
@@ -75,6 +81,9 @@ class CheckoutController extends Controller
             'greeting_card' => $item->greeting_card,
             'custom_message' => $item->custom_message
         ]);
+
+        $item->product->stock -= $item->qty;
+        $item->product->save();
     }
 
     // Kosongkan cart

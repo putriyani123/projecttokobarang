@@ -605,6 +605,18 @@
                                     <span class="px-3 py-2 rounded-xl text-xs font-bold bg-purple-50 text-purple-600">
                                         DITERIMA (PACKING)
                                     </span>
+                                @elseif($trx->status == 'assigned')
+                                    <span class="px-3 py-2 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-600">
+                                        MENUNGGU KURIR
+                                    </span>
+                                @elseif($trx->status == 'courier_accepted')
+                                    <span class="px-3 py-2 rounded-xl text-xs font-bold bg-yellow-50 text-yellow-600">
+                                        KURIR OTW PICKUP
+                                    </span>
+                                @elseif($trx->status == 'admin_handed_over')
+                                    <span class="px-3 py-2 rounded-xl text-xs font-bold bg-orange-50 text-orange-600">
+                                        MENUNGGU KURIR AMBIL
+                                    </span>
                                 @elseif($trx->status == 'shipped')
                                     <span class="px-3 py-2 rounded-xl text-xs font-bold bg-blue-50 text-blue-600">
                                         DIKIRIM
@@ -631,10 +643,23 @@
 
                             <td class="px-7 py-5 text-right font-medium">
                                 @if($trx->status == 'paid')
-                                    <form action="{{ route('admin.accept', $trx->id) }}" method="POST" class="inline">
+                                    <form action="{{ route('admin.accept', $trx->id) }}" method="POST" class="inline flex items-center gap-2">
                                         @csrf
+                                        <select name="courier_id" required class="text-xs border-pink-100 rounded-lg px-2 py-2 text-gray-700 bg-white shadow-sm focus:ring-pink-500 focus:border-pink-500">
+                                            <option value="">Pilih Kurir...</option>
+                                            @foreach($couriers as $courier)
+                                                <option value="{{ $courier->id }}">{{ $courier->name }}</option>
+                                            @endforeach
+                                        </select>
                                         <button type="submit" class="bg-pink-600 hover:bg-pink-700 text-white font-bold px-4 py-2 rounded-xl text-xs uppercase tracking-wider transition duration-200">
-                                            Terima
+                                            Tugaskan
+                                        </button>
+                                    </form>
+                                @elseif($trx->status == 'courier_accepted')
+                                    <form action="{{ route('admin.handover', $trx->id) }}" method="POST" class="inline">
+                                        @csrf
+                                        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2 rounded-xl text-xs uppercase tracking-wider transition duration-200">
+                                            Serahkan Barang
                                         </button>
                                     </form>
                                 @else

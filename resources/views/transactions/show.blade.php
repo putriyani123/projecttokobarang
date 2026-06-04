@@ -8,8 +8,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
 
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
 
     <style>
+        .leaflet-routing-container { display: none !important; }
         body {
             font-family: 'Poppins', sans-serif;
             background: radial-gradient(circle at top, #fff1f7 0%, #ffffff 70%);
@@ -98,9 +101,21 @@
                         <span class="bg-pink-100 text-pink-600 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider">
                             DIPROSES (LUNAS)
                         </span>
-                    @elseif($transaction->status == 'confirmed')
+                    @elseif($transaction->status == 'assigned')
+                        <span class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider">
+                            MENUNGGU KURIR
+                        </span>
+                    @elseif($transaction->status == 'courier_accepted')
                         <span class="bg-yellow-100 text-yellow-700 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider">
-                            SIAP DIKIRIM
+                            KURIR OTW PICKUP
+                        </span>
+                    @elseif($transaction->status == 'admin_handed_over')
+                        <span class="bg-orange-100 text-orange-700 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider">
+                            MENUNGGU KURIR AMBIL
+                        </span>
+                    @elseif($transaction->status == 'confirmed')
+                        <span class="bg-purple-100 text-purple-700 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider">
+                            DITERIMA (PACKING)
                         </span>
                     @elseif($transaction->status == 'shipped')
                         <span class="bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider">
@@ -147,8 +162,8 @@
                 <div>
                     <h3 class="text-xs font-bold uppercase text-pink-600 tracking-wider mb-2">Alamat Pengiriman</h3>
                     @if($transaction->address)
-                        <p class="text-xs text-gray-700 font-semibold mb-0.5">{{ $transaction->address->recipient_name }} ({{ $transaction->address->phone }})</p>
-                        <p class="text-xs text-gray-500 leading-relaxed">{{ $transaction->address->address }}, {{ $transaction->address->city }}, {{ $transaction->address->province }}</p>
+                        <p class="text-xs text-gray-700 font-semibold mb-0.5">{{ $transaction->user->name ?? 'Guest' }} (-)</p>
+                        <p class="text-xs text-gray-500 leading-relaxed">{{ $transaction->address->detail_address ?? '' }}, {{ $transaction->address->village ?? '' }}, {{ $transaction->address->district ?? '' }}, {{ $transaction->address->city ?? '' }}, {{ $transaction->address->province ?? '' }}</p>
                     @else
                         <p class="text-xs text-gray-400">Tidak ada informasi alamat.</p>
                     @endif
@@ -271,6 +286,13 @@
                         @endif
                     </div>
                 @endif
+
+                @if(in_array($transaction->status, ['assigned', 'courier_accepted', 'admin_handed_over', 'shipped']) && $transaction->courier_id)
+                    <div class="mt-5 pt-5 border-t border-pink-50/40 space-y-3 bg-pink-50/10 p-5 rounded-2xl">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-pink-600 mb-3">Lacak Kurir (Real-Time)</h4>
+                        <div id="courier-map" style="height: 300px; border-radius: 12px; z-index: 1;"></div>
+                    </div>
+                @endif
             </div>
 
             <!-- Footer -->
@@ -285,10 +307,23 @@
                 </div>
 
                 @if(auth()->check() && auth()->user()->role === 'admin' && $transaction->status == 'paid')
-                    <form action="{{ route('admin.accept', $transaction->id) }}" method="POST" class="w-full sm:w-auto">
+                    <form action="{{ route('admin.accept', $transaction->id) }}" method="POST" class="w-full sm:w-auto flex flex-col sm:flex-row gap-2">
                         @csrf
-                        <button type="submit" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold px-5 py-3 rounded-xl text-xs uppercase tracking-wider transition duration-200">
-                            Terima & Konfirmasi Pesanan
+                        <select name="courier_id" required class="text-xs border border-pink-200 rounded-xl px-4 py-3 text-gray-700 bg-white shadow-sm focus:ring-pink-500 focus:border-pink-500">
+                            <option value="">Pilih Kurir...</option>
+                            @foreach($couriers as $courier)
+                                <option value="{{ $courier->id }}">{{ $courier->name }}</option>
+                            @endforeach
+                        </select>
+                        <button type="submit" class="w-full sm:w-auto bg-pink-600 hover:bg-pink-700 text-white font-bold px-5 py-3 rounded-xl text-xs uppercase tracking-wider transition duration-200">
+                            Tugaskan Kurir
+                        </button>
+                    </form>
+                @elseif(auth()->check() && auth()->user()->role === 'admin' && $transaction->status == 'courier_accepted')
+                    <form action="{{ route('admin.handover', $transaction->id) }}" method="POST" class="w-full sm:w-auto">
+                        @csrf
+                        <button type="submit" class="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-bold px-5 py-3 rounded-xl text-xs uppercase tracking-wider transition duration-200">
+                            Serahkan Barang ke Kurir
                         </button>
                     </form>
                 @endif
@@ -320,5 +355,113 @@
 
     </div>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            var mapElement = document.getElementById('courier-map');
+            if (mapElement) {
+                var map = L.map('courier-map').setView([-6.200000, 106.816666], 13); // Default Jakarta
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '&copy; OpenStreetMap'
+                }).addTo(map);
+
+                var courierIcon = L.icon({
+                    iconUrl: 'https://cdn-icons-png.flaticon.com/512/3097/3097180.png', // Ikon motor kurir
+                    iconSize: [40, 40],
+                    iconAnchor: [20, 40],
+                    popupAnchor: [0, -40]
+                });
+
+                var destIcon = L.icon({
+                    iconUrl: 'https://cdn-icons-png.flaticon.com/512/2555/2555529.png', // Ikon rumah
+                    iconSize: [40, 40],
+                    iconAnchor: [20, 40],
+                    popupAnchor: [0, -40]
+                });
+
+                var courierMarker = null;
+                var routingControl = null;
+                var destLatLng = null;
+
+                @php
+                    $rawAddress = '';
+                    if($transaction->address) {
+                        $rawAddress = ($transaction->address->detail_address ?? '') . ', ' . ($transaction->address->village ?? '') . ', ' . ($transaction->address->district ?? '') . ', ' . ($transaction->address->city ?? '') . ', ' . ($transaction->address->province ?? '');
+                    }
+                @endphp
+
+                var addressQuery = "{{ $rawAddress }}";
+                
+                if (addressQuery.trim() !== "") {
+                    fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(addressQuery))
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data && data.length > 0) {
+                                destLatLng = L.latLng(data[0].lat, data[0].lon);
+                                L.marker(destLatLng, {icon: destIcon}).addTo(map).bindPopup('Lokasi Pengiriman: Rumah Anda').openPopup();
+                                map.setView(destLatLng, 13);
+                            }
+                        })
+                        .catch(err => console.error("Geocoding error", err));
+                }
+
+                function fetchCourierLocation() {
+                    fetch('{{ route("transaction.courier_location", $transaction->id) }}')
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (data.latitude && data.longitude) {
+                                var latlng = [data.latitude, data.longitude];
+                                
+                                if (!courierMarker) {
+                                    courierMarker = L.marker(latlng, {icon: courierIcon}).addTo(map)
+                                        .bindPopup('Lokasi Kurir').openPopup();
+                                } else {
+                                    courierMarker.setLatLng(latlng);
+                                }
+
+                                if (destLatLng) {
+                                    if (!routingControl) {
+                                        routingControl = L.Routing.control({
+                                            waypoints: [
+                                                L.latLng(data.latitude, data.longitude),
+                                                destLatLng
+                                            ],
+                                            lineOptions: {
+                                                styles: [{color: '#2563EB', opacity: 0.8, weight: 6}] // Warna biru rute ala gojek
+                                            },
+                                            createMarker: function() { return null; }, 
+                                            fitSelectedRoutes: true,
+                                            show: false
+                                        }).addTo(map);
+                                    } else {
+                                        routingControl.setWaypoints([
+                                            L.latLng(data.latitude, data.longitude),
+                                            destLatLng
+                                        ]);
+                                    }
+                                } else {
+                                    map.setView(latlng, 15);
+                                }
+                            }
+                        })
+                        .catch(error => console.error('Error fetching courier location:', error));
+                }
+
+                // Initial fetch
+                fetchCourierLocation();
+
+                // Update location every 10 seconds
+                setInterval(fetchCourierLocation, 10000);
+            }
+        });
+    </script>
 </body>
 </html>

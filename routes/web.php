@@ -189,11 +189,17 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         'adminDashboard'
     ])->name('admin.dashboard');
 
-    // Terima/konfirmasi pesanan
+    // Terima/konfirmasi pesanan (pilih kurir)
     Route::post('/admin/transaction/{id}/accept', [
         DashboardController::class,
         'acceptOrder'
     ])->name('admin.accept');
+
+    // Serahkan barang ke kurir
+    Route::post('/admin/transaction/{id}/handover', [
+        DashboardController::class,
+        'handoverToCourier'
+    ])->name('admin.handover');
 
     // KELOLA PENGATURAN TOKO (BANNER PROMO)
     Route::get('/admin/settings', [
@@ -266,11 +272,35 @@ Route::middleware(['auth', 'role:kurir'])->group(function () {
         'shipOrder'
     ])->name('kurir.ship');
 
+    // Kurir terima tugas
+    Route::post('/kurir/transaction/{id}/accept-task', [
+        DashboardController::class,
+        'acceptTask'
+    ])->name('kurir.accept_task');
+
+    // Kurir konfirmasi ambil barang
+    Route::post('/kurir/transaction/{id}/pickup', [
+        DashboardController::class,
+        'pickupOrder'
+    ])->name('kurir.pickup');
+
     // TAMBAHAN SELESAIKAN PESANAN
     Route::post('/kurir/transaction/{id}/complete', [
         KurirController::class,
         'complete'
     ])->name('kurir.complete');
+
+    // Update lokasi kurir
+    Route::post('/kurir/update-location', [
+        KurirController::class,
+        'updateLocation'
+    ])->name('kurir.update_location');
+
+    // Halaman Map Kurir
+    Route::get('/kurir/transaction/{id}/map', [
+        KurirController::class,
+        'deliveryMap'
+    ])->name('kurir.delivery_map');
 });
 
 
@@ -279,6 +309,7 @@ Route::middleware(['auth', 'role:kurir'])->group(function () {
 // =============================
 Route::get('/transactions', [TransactionController::class, 'index']);
 Route::get('/transaction/{id}', [TransactionController::class, 'show'])->name('transaction.show')->middleware('auth');
+Route::get('/transaction/{id}/courier-location', [TransactionController::class, 'getCourierLocation'])->name('transaction.courier_location')->middleware('auth');
 Route::get('/transaction/{id}/pdf', [TransactionController::class, 'exportSinglePdf'])->name('transaction.single.pdf')->middleware('auth');
 Route::get('/transaction/{id}/excel', [TransactionController::class, 'exportSingleExcel'])->name('transaction.single.excel')->middleware('auth');
 

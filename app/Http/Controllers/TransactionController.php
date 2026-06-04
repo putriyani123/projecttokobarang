@@ -77,6 +77,14 @@ class TransactionController extends Controller
             }
         }
 
+        foreach ($request->items as $item) {
+            $product = Product::findOrFail($item['id']);
+            $qty   = max(1, (int)$item['qty']);
+            if ($qty > $product->stock) {
+                return response()->json(['error' => 'Maaf, stok ' . $product->name . ' tidak mencukupi (Sisa: ' . $product->stock . ')'], 400);
+            }
+        }
+
         $transaction = Transaction::create([
             'user_id' => auth()->id(), // 🔥 Simpan ID user yang login
             'address_id' => $addressId,
@@ -103,6 +111,9 @@ class TransactionController extends Controller
                 'greeting_card' => $item['greeting_card'] ?? null,
                 'custom_message' => $item['custom_message'] ?? null
             ]);
+
+            $product->stock -= $qty;
+            $product->save();
         }
 
         $params = [
@@ -341,6 +352,29 @@ public function exportSingleExcel($id)
             abort(403, 'Akses ditolak.');
         }
 
-        return view('transactions.show', compact('transaction'));
+        $couriers = \App\Models\User::where('role', 'kurir')->get();
+
+        return view('transactions.show', compact('transaction', 'couriers'));
+    }
+
+    public function getCourierLocation($id)
+    {
+        $transaction = Transaction::with('courier')->findOrFail($id);
+
+        // Access control
+        $user = auth()->user();
+        if ($user->role !== 'admin' && $user->role !== 'kurir' && $transaction->user_id !== $user->id) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        if (!$transaction->courier) {
+            return response()->json(['error' => 'Courier not assigned yet'], 404);
+        }
+
+        return response()->json([
+            'latitude' => $transaction->courier->latitude,
+            'longitude' => $transaction->courier->longitude,
+            'updated_at' => $transaction->courier->updated_at,
+        ]);
     }
 }

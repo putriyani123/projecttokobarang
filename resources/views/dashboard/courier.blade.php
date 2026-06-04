@@ -123,11 +123,11 @@
                 <div class="flex justify-between items-center">
                     <div>
                         <p class="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-2">
-                            Siap Dikirim
+                            Tugas Baru
                         </p>
 
                         <h2 class="text-4xl font-bold text-gray-800">
-                            {{ $readyToShip }}
+                            {{ $newTasks }}
                         </h2>
                     </div>
 
@@ -255,67 +255,61 @@
 
                              <td class="p-4">
 
-                                @if($trx->status == 'confirmed')
-
-                                    <span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm font-semibold">
-                                        Siap Dikirim
+                                @if($trx->status == 'assigned')
+                                    <span class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-semibold">
+                                        Tugas Baru
                                     </span>
-
+                                @elseif($trx->status == 'courier_accepted')
+                                    <span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm font-semibold">
+                                        Menunggu Admin
+                                    </span>
+                                @elseif($trx->status == 'admin_handed_over')
+                                    <span class="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-semibold">
+                                        Barang Siap Diambil
+                                    </span>
                                 @elseif($trx->status == 'shipped')
-
                                     <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-semibold">
                                         Dikirim
                                     </span>
-
-                                @elseif($trx->status == 'delivered')
-
-                                    <span class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-sm font-semibold">
-                                        Terkirim
-                                    </span>
-
                                 @elseif($trx->status == 'completed')
-
                                     <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-semibold">
                                         Selesai
                                     </span>
-
                                 @endif
 
                             </td>
 
                             <td class="p-4">
 
-                                @if($trx->status == 'confirmed')
-
-                                <form action="{{ route('kurir.ship', $trx->id) }}" method="POST">
-
-                                    @csrf
-
-                                    <button class="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg font-semibold transition">
-                                        Kirim
-                                    </button>
-
-                                </form>
-
+                                @if($trx->status == 'assigned')
+                                    <form action="{{ route('kurir.accept_task', $trx->id) }}" method="POST">
+                                        @csrf
+                                        <button class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-semibold transition">
+                                            Terima Tugas
+                                        </button>
+                                    </form>
+                                @elseif($trx->status == 'admin_handed_over')
+                                    <form action="{{ route('kurir.pickup', $trx->id) }}" method="POST">
+                                        @csrf
+                                        <button class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-semibold transition">
+                                            Konfirmasi Barang Diambil
+                                        </button>
+                                    </form>
                                 @elseif($trx->status == 'shipped')
-
-                                <form action="{{ route('kurir.complete', $trx->id) }}"
-                                      method="POST"
-                                      enctype="multipart/form-data">
-
-                                    @csrf
-
-                                    <input type="file"
-                                           name="proof"
-                                           required
-                                           class="mb-2 text-sm">
-
-                                    <button class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-semibold transition shadow-sm">
-                                        Selesaikan
-                                    </button>
-
-                                </form>
-
+                                    <div class="flex flex-col gap-2">
+                                        <a href="{{ route('kurir.delivery_map', $trx->id) }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition text-center text-sm shadow-sm">
+                                            Buka Map Antar
+                                        </a>
+                                        <form action="{{ route('kurir.complete', $trx->id) }}" method="POST" enctype="multipart/form-data">
+                                            @csrf
+                                            <input type="file" name="proof" required class="mb-2 text-sm w-full">
+                                            <button class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-semibold transition shadow-sm w-full text-sm">
+                                                Selesaikan
+                                            </button>
+                                        </form>
+                                    </div>
+                                @else
+                                    <span class="text-gray-400 text-xs">-</span>
                                 @endif
 
                             </td>
@@ -360,6 +354,36 @@
 
     courierBurger.addEventListener('click', toggleCourierSidebar);
     courierOverlay.addEventListener('click', toggleCourierSidebar);
+
+    // KURIR LOCATION TRACKING
+    function updateLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(position) {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+
+                fetch('/kurir/update-location', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        latitude: lat,
+                        longitude: lng
+                    })
+                })
+                .then(response => response.json())
+                .then(data => console.log('Location updated'))
+                .catch(error => console.error('Error updating location:', error));
+            });
+        }
+    }
+
+    // Update location every 15 seconds
+    setInterval(updateLocation, 15000);
+    // Initial call
+    updateLocation();
 </script>
 
 </body>

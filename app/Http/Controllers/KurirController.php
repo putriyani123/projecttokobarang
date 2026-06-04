@@ -25,4 +25,30 @@ class KurirController extends Controller
 
         return redirect()->back()->with('success', 'Pesanan berhasil diselesaikan!');
     }
+
+    public function updateLocation(Request $request)
+    {
+        $request->validate([
+            'latitude' => 'required|numeric',
+            'longitude' => 'required|numeric',
+        ]);
+
+        $user = auth()->user();
+        $user->latitude = $request->latitude;
+        $user->longitude = $request->longitude;
+        $user->save();
+
+        return response()->json(['status' => 'success']);
+    }
+
+    public function deliveryMap($id)
+    {
+        $transaction = Transaction::with(['user', 'address'])->findOrFail($id);
+
+        if ($transaction->courier_id !== auth()->id()) {
+            abort(403, 'Akses ditolak.');
+        }
+
+        return view('kurir.map', compact('transaction'));
+    }
 }

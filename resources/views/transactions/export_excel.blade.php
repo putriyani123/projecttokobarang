@@ -21,8 +21,8 @@
         <td><strong>Alamat Pengiriman</strong></td>
         <td colspan="3">
             @if($transaction->address)
-                {{ $transaction->address->recipient_name }} ({{ $transaction->address->phone }}) - 
-                {{ $transaction->address->address }}, {{ $transaction->address->city }}, {{ $transaction->address->province }}
+                {{ $transaction->user->name ?? 'Guest' }} (-) - 
+                {{ $transaction->address->detail_address ?? '' }}, {{ $transaction->address->village ?? '' }}, {{ $transaction->address->district ?? '' }}, {{ $transaction->address->city ?? '' }}, {{ $transaction->address->province ?? '' }}
             @else
                 Tidak ada informasi alamat.
             @endif

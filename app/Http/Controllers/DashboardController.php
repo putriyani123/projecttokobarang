@@ -63,6 +63,9 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
+        // === AMBIL DATA KURIR ===
+        $couriers = User::where('role', 'kurir')->get();
+
         return view(
             'dashboard.admin',
             compact(
@@ -73,31 +76,60 @@ class DashboardController extends Controller
                 'monthlySales',
                 'statusData',
                 'statusDisplay',
-                'topProducts'
+                'topProducts',
+                'couriers'
             )
         );
     }
 
     // =========================
-    // ACCEPT ORDER (Admin)
+    // ASSIGN ORDER TO COURIER (Admin)
     // =========================
-    public function acceptOrder($id)
+    public function acceptOrder(Request $request, $id)
     {
         $transaction = Transaction::findOrFail($id);
 
-        if ($transaction->status === 'paid') {
-            $transaction->status = 'confirmed';
+        $request->validate([
+            'courier_id' => 'required|exists:users,id'
+        ]);
+
+        if ($transaction->status === 'paid' || $transaction->status === 'confirmed') {
+            $transaction->status = 'assigned';
+            $transaction->courier_id = $request->courier_id;
             $transaction->save();
 
             return redirect()->back()->with(
                 'success',
-                'Pesanan berhasil diterima dan siap dikirim oleh kurir!'
+                'Pesanan berhasil ditugaskan ke kurir.'
             );
         }
 
         return redirect()->back()->with(
             'error',
             'Status pesanan tidak valid untuk dikonfirmasi.'
+        );
+    }
+
+    // =========================
+    // HANDOVER ORDER TO COURIER (Admin)
+    // =========================
+    public function handoverToCourier($id)
+    {
+        $transaction = Transaction::findOrFail($id);
+
+        if ($transaction->status === 'courier_accepted') {
+            $transaction->status = 'admin_handed_over';
+            $transaction->save();
+
+            return redirect()->back()->with(
+                'success',
+                'Barang telah diserahkan ke kurir (menunggu konfirmasi kurir).'
+            );
+        }
+
+        return redirect()->back()->with(
+            'error',
+            'Status pesanan tidak valid untuk diserahkan.'
         );
     }
 
@@ -222,36 +254,87 @@ class DashboardController extends Controller
     // =========================
     public function courierDashboard()
     {
-        // Pesanan siap dikirim
-        $readyToShip = Transaction::where('status', 'confirmed')
-                                ->count();
+        $courierId = auth()->id();
+
+        // Pesanan baru ditugaskan
+        $newTasks = Transaction::where('courier_id', $courierId)->where('status', 'assigned')->count();
+
+        // Pesanan siap diambil di admin (menunggu admin serahkan)
+        $readyToShip = Transaction::where('courier_id', $courierId)->where('status', 'courier_accepted')->count();
+
+        // Pesanan sudah diserahkan admin, menunggu konfirmasi pickup kurir
+        $waitingPickup = Transaction::where('courier_id', $courierId)->where('status', 'admin_handed_over')->count();
         
         // Pesanan sedang dikirim
-        $shippingOrders = Transaction::where('status', 'shipped')
-                                    ->count();
+        $shippingOrders = Transaction::where('courier_id', $courierId)->where('status', 'shipped')->count();
 
         // Pesanan selesai
-        $completedOrders = Transaction::where('status', 'completed')
-                                    ->count();
+        $completedOrders = Transaction::where('courier_id', $courierId)->where('status', 'completed')->count();
         
         // Total semua pesanan
-        $totalOrders = Transaction::count();
+        $totalOrders = Transaction::where('courier_id', $courierId)->count();
         
         // Data transaksi terbaru
         $recentTransactions = Transaction::with(['user', 'address'])
+                                        ->where('courier_id', $courierId)
+                                        ->whereIn('status', ['assigned', 'courier_accepted', 'admin_handed_over', 'shipped', 'completed'])
                                         ->latest()
                                         ->take(15)
                                         ->get();
-return view(
-    'dashboard.courier',
-    compact(
-        'readyToShip',
-        'shippingOrders',
-        'completedOrders',
-        'totalOrders',
-        'recentTransactions'
-    )
-);
+        return view(
+            'dashboard.courier',
+            compact(
+                'newTasks',
+                'readyToShip',
+                'waitingPickup',
+                'shippingOrders',
+                'completedOrders',
+                'totalOrders',
+                'recentTransactions'
+            )
+        );
+    }
+
+    // =========================
+    // COURIER PICKUP ORDER
+    // =========================
+    public function pickupOrder($id)
+    {
+        $transaction = Transaction::where('courier_id', auth()->id())->findOrFail($id);
+
+        if ($transaction->status === 'admin_handed_over') {
+            $transaction->status = 'shipped';
+            $transaction->save();
+
+            return redirect()->back()->with(
+                'success',
+                'Barang telah diambil! Silakan mulai pengantaran ke pelanggan.'
+            );
+        }
+
+        return redirect()->back()->with(
+            'error',
+            'Pesanan tidak valid untuk di-pickup.'
+        );
+    }
+    public function acceptTask($id)
+    {
+        $transaction = Transaction::where('courier_id', auth()->id())->findOrFail($id);
+
+        if ($transaction->status === 'assigned') {
+            $transaction->status = 'courier_accepted';
+            $transaction->save();
+
+            return redirect()->back()->with(
+                'success',
+                'Tugas diterima! Silakan ambil barang di Admin.'
+            );
+        }
+
+        return redirect()->back()->with(
+            'error',
+            'Tugas tidak valid.'
+        );
     }
 
     // =========================

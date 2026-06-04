@@ -27,7 +27,18 @@ class CartController extends Controller
             'custom_message' => 'nullable|string'
         ]);
 
+        $product = Product::findOrFail($request->product_id);
+
         $cart = Cart::firstOrCreate(['user_id' => auth()->id()]);
+
+        // Cek total qty produk ini di keranjang user (untuk menghitung jika ada custom_message/warna box berbeda tapi produk sama)
+        $currentTotalQtyInCart = CartItem::where('cart_id', $cart->id)
+                                         ->where('product_id', $product->id)
+                                         ->sum('qty');
+
+        if ($currentTotalQtyInCart + $request->qty > $product->stock) {
+            return back()->with('error', 'Maaf, stok produk tidak mencukupi. Sisa stok: ' . $product->stock);
+        }
 
         // Find existing item with the exact same custom options
         $cartItem = CartItem::where('cart_id', $cart->id)
@@ -63,6 +74,12 @@ class CartController extends Controller
         $cartItem = CartItem::whereHas('cart', function($q) {
             $q->where('user_id', auth()->id());
         })->findOrFail($id);
+
+        $product = $cartItem->product;
+
+        if ($request->qty > $product->stock) {
+            return back()->with('error', 'Maaf, kuantitas melebihi stok yang tersedia (' . $product->stock . ')');
+        }
 
         $cartItem->qty = $request->qty;
         $cartItem->save();
