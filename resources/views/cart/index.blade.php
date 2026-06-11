@@ -181,6 +181,24 @@
 
                     <hr class="border-pink-50 my-6">
 
+                    <!-- Pilih Alamat Pengiriman -->
+                    <div class="mb-4">
+                        <label class="block text-xs font-bold uppercase tracking-wider mb-2 text-gray-500">📍 Alamat Pengiriman</label>
+                        @if($addresses->count() > 0)
+                            <select id="address_id" class="w-full px-4 py-3 text-sm border border-pink-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 bg-white">
+                                @foreach($addresses as $addr)
+                                    <option value="{{ $addr->id }}">
+                                        {{ $addr->detail_address }}, {{ $addr->village }}, {{ $addr->district }}, {{ $addr->city }}, {{ $addr->province }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        @else
+                            <div class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-xs">
+                                Anda belum memiliki alamat. <a href="/addresses" class="font-bold underline hover:text-red-700">Tambah alamat dulu</a>
+                            </div>
+                        @endif
+                    </div>
+
                     @if($cart && $cart->items->count() > 0)
                         <button onclick="checkoutCart()" class="w-full btn-primary py-4 rounded-xl font-bold text-sm text-center shadow-lg uppercase tracking-wider">
                             Checkout Sekarang
@@ -200,8 +218,14 @@
     
     <script>
     function checkoutCart() {
+        const addressSelect = document.getElementById('address_id');
+        if (!addressSelect || !addressSelect.value) {
+            alert('Mohon pilih alamat pengiriman terlebih dahulu.');
+            return;
+        }
+
         const payload = {
-            address_id: 1 // Default
+            address_id: addressSelect.value
         };
 
         @if($hasPreorder)

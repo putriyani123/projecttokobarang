@@ -95,8 +95,12 @@
                     </div>
 
                     <div class="col-md-3 mb-3">
-                        <label>Harga</label>
-                        <input type="number" name="price" class="form-control" placeholder="Rp 0">
+                        <label>Harga (Rupiah)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">Rp</span>
+                            <input type="number" name="price" class="form-control" placeholder="50000" min="1000" step="500">
+                        </div>
+                        <small class="text-muted">Contoh: 50000, 80000, 150000</small>
                     </div>
 
                     <div class="col-md-3 mb-3">
@@ -107,6 +111,11 @@
                     <div class="col-md-3 mb-3">
                         <label>Stock</label>
                         <input type="number" name="stock" class="form-control" placeholder="0">
+                    </div>
+
+                    <div class="col-12 mb-3">
+                        <label>Deskripsi Produk</label>
+                        <textarea name="description" class="form-control" rows="3" placeholder="Jelaskan kegunaan dan manfaat produk ini..."></textarea>
                     </div>
 
                     <div class="col-12 mb-3">

@@ -10,7 +10,7 @@ class KurirController extends Controller
     public function complete(Request $request, $id)
     {
         $request->validate([
-            'proof' => 'required|image|mimes:jpg,jpeg,png|max:2048'
+            'proof' => 'required|image|mimes:jpg,jpeg,png|max:10240'
         ]);
 
         $trx = Transaction::findOrFail($id);

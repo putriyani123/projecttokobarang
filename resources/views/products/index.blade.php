@@ -421,7 +421,9 @@
             $name = strtolower($item->name);
             $desc = '';
 
-            if(str_contains($name, 'sunscreen')) {
+            if($item->description) {
+                $desc = $item->description;
+            } elseif(str_contains($name, 'sunscreen')) {
                 $desc = '☀️ Melindungi kulit dari sinar UV dan menjaga kelembapan kulit.';
             } elseif(str_contains($name, 'serum')) {
                 $desc = '✨ Mencerahkan kulit dan membantu memperbaiki skin barrier.';
@@ -610,8 +612,6 @@ function checkout(productId, price, qty = 1) {
 
         body:JSON.stringify({
 
-            address_id:1,
-
             total:totalPrice,
 
             items:[
@@ -632,7 +632,7 @@ function checkout(productId, price, qty = 1) {
 
         if(!data.snap_token){
 
-            alert('Checkout gagal');
+            alert(data.error || 'Checkout gagal');
 
             return;
         }

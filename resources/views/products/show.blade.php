@@ -272,7 +272,6 @@
                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
             },
             body: JSON.stringify({
-                address_id: 1, // Default
                 total: totalPrice,
                 items: [
                     {

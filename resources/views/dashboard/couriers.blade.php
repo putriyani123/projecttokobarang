@@ -129,9 +129,14 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>💌 Data Kurir</h2>
 
-        <a href="/admin/dashboard" class="btn btn-secondary btn-sm">
-            ⬅ Kembali
-        </a>
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalTambahKurir">
+                ➕ Tambah Kurir
+            </button>
+            <a href="/admin/dashboard" class="btn btn-secondary btn-sm">
+                ⬅ Kembali
+            </a>
+        </div>
     </div>
 
     {{-- ALERT --}}
@@ -148,62 +153,6 @@
     @endif
 
 
-    {{-- TAMBAH KURIR --}}
-    <div class="card mb-4">
-        <div class="card-body">
-
-            <h4 class="mb-3">Tambah Kurir</h4>
-
-            <form method="POST" action="{{ route('admin.couriers.store') }}">
-                @csrf
-
-                <div class="row">
-
-                    <div class="col-12 col-md-4 mb-3">
-                        <label class="form-label fw-semibold" style="font-size:13px;">Nama Kurir</label>
-                        <input
-                            type="text"
-                            name="name"
-                            class="form-control"
-                            placeholder="Nama Kurir"
-                            required
-                        >
-                    </div>
-
-                    <div class="col-12 col-md-4 mb-3">
-                        <label class="form-label fw-semibold" style="font-size:13px;">Email</label>
-                        <input
-                            type="email"
-                            name="email"
-                            class="form-control"
-                            placeholder="Email"
-                            required
-                        >
-                    </div>
-
-                    <div class="col-12 col-md-4 mb-3">
-                        <label class="form-label fw-semibold" style="font-size:13px;">Password</label>
-                        <input
-                            type="password"
-                            name="password"
-                            class="form-control"
-                            placeholder="Password"
-                            required
-                        >
-                    </div>
-
-                </div>
-
-                <button class="btn btn-primary w-100 w-md-auto">
-                    ➕ Tambah Kurir
-                </button>
-
-            </form>
-
-        </div>
-    </div>
-
-
     {{-- TABLE KURIR --}}
     <div class="card">
         <div class="card-body">
@@ -218,6 +167,7 @@
                         <th>No</th>
                         <th>Nama</th>
                         <th>Email</th>
+                        <th>Alamat / Wilayah</th>
                         <th>Aksi</th>
                     </tr>
                 </thead>
@@ -227,15 +177,11 @@
                     @forelse($couriers as $courier)
 
                         <tr>
-
                             <td>{{ $loop->iteration }}</td>
-
                             <td class="fw-semibold">{{ $courier->name }}</td>
-
                             <td>{{ $courier->email }}</td>
-
+                            <td>{{ $courier->base_address ?? '-' }}</td>
                             <td>
-
                                 <form
                                     action="{{ route('admin.couriers.delete', $courier->id) }}"
                                     method="POST"
@@ -251,9 +197,7 @@
                                     </button>
 
                                 </form>
-
                             </td>
-
                         </tr>
 
                     @empty
@@ -276,5 +220,74 @@
 
 </div>
 
+
+{{-- MODAL TAMBAH KURIR --}}
+<div class="modal fade" id="modalTambahKurir" tabindex="-1" aria-labelledby="modalTambahKurirLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 20px; border: 1px solid #ffe3ee;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="modalTambahKurirLabel">➕ Tambah Kurir</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body pt-2">
+                <p class="text-muted mb-3" style="font-size: 13px;">Masukkan data kurir baru ke dalam sistem</p>
+
+                <form method="POST" action="{{ route('admin.couriers.store') }}">
+                    @csrf
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="font-size:13px;">Nama Kurir</label>
+                        <input
+                            type="text"
+                            name="name"
+                            class="form-control"
+                            placeholder="Masukkan nama kurir"
+                            required
+                        >
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="font-size:13px;">Email</label>
+                        <input
+                            type="email"
+                            name="email"
+                            class="form-control"
+                            placeholder="Masukkan email kurir"
+                            required
+                        >
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="font-size:13px;">Password</label>
+                        <input
+                            type="password"
+                            name="password"
+                            class="form-control"
+                            placeholder="Masukkan password"
+                            required
+                        >
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="font-size:13px;">Alamat / Wilayah Operasi</label>
+                        <textarea
+                            name="base_address"
+                            class="form-control"
+                            placeholder="Contoh: Jawa Barat, Kota Banyuwangi"
+                            rows="2"
+                            required
+                        ></textarea>
+                    </div>
+
+                    <button class="btn btn-primary w-100 mt-2">
+                        💾 Simpan Kurir
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

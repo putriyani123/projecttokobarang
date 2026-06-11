@@ -16,7 +16,7 @@ class DashboardController extends Controller
     // =========================
     public function adminDashboard()
     {
-        $totalSales = Transaction::where('status', 'paid')
+        $totalSales = Transaction::whereIn('status', ['paid', 'confirmed', 'assigned', 'courier_accepted', 'admin_handed_over', 'shipped', 'delivered', 'completed'])
                                 ->sum('total_price');
 
         $totalUsers = User::where('role', 'user')
@@ -33,7 +33,7 @@ class DashboardController extends Controller
         $monthlySales = collect();
         for ($i = 5; $i >= 0; $i--) {
             $month = now()->subMonths($i);
-            $total = Transaction::where('status', 'paid')
+            $total = Transaction::whereIn('status', ['paid', 'confirmed', 'assigned', 'courier_accepted', 'admin_handed_over', 'shipped', 'delivered', 'completed'])
                 ->whereYear('created_at', $month->year)
                 ->whereMonth('created_at', $month->month)
                 ->sum('total_price');
@@ -48,15 +48,28 @@ class DashboardController extends Controller
             ->groupBy('status')
             ->pluck('total', 'status');
 
+        $statusCountsMapped = [
+            'paid' => ($statusCounts->get('paid', 0)
+                + $statusCounts->get('confirmed', 0)
+                + $statusCounts->get('assigned', 0)
+                + $statusCounts->get('courier_accepted', 0)
+                + $statusCounts->get('admin_handed_over', 0)),
+            'pending' => $statusCounts->get('pending', 0),
+            'failed' => $statusCounts->get('failed', 0),
+            'shipped' => ($statusCounts->get('shipped', 0) + $statusCounts->get('delivered', 0)),
+            'completed' => $statusCounts->get('completed', 0),
+            'returned' => $statusCounts->get('returned', 0),
+        ];
+
         $statusLabels  = ['paid', 'pending', 'failed', 'shipped', 'completed', 'returned'];
-        $statusData    = collect($statusLabels)->map(fn($s) => $statusCounts->get($s, 0));
+        $statusData    = collect($statusLabels)->map(fn($s) => $statusCountsMapped[$s] ?? 0);
         $statusDisplay = ['Lunas', 'Pending', 'Gagal', 'Dikirim', 'Selesai', 'Dikembalikan'];
 
         // === GRAFIK 3: Produk Terlaris ===
         $topProducts = DB::table('transaction_items')
             ->join('products', 'transaction_items.product_id', '=', 'products.id')
             ->join('transactions', 'transaction_items.transaction_id', '=', 'transactions.id')
-            ->where('transactions.status', 'paid')
+            ->whereIn('transactions.status', ['paid', 'confirmed', 'assigned', 'courier_accepted', 'admin_handed_over', 'shipped', 'delivered', 'completed'])
             ->select('products.name', DB::raw('SUM(transaction_items.qty) as total_sold'))
             ->groupBy('products.id', 'products.name')
             ->orderByDesc('total_sold')
@@ -171,14 +184,16 @@ class DashboardController extends Controller
         $request->validate([
             'name' => 'required',
             'email' => 'required|email|unique:users,email',
-            'password' => 'required|min:6'
+            'password' => 'required|min:6',
+            'base_address' => 'required|string'
         ]);
 
         User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => bcrypt($request->password),
-            'role' => 'kurir'
+            'role' => 'kurir',
+            'base_address' => $request->base_address
         ]);
 
         return redirect()->back()->with(
@@ -218,7 +233,7 @@ class DashboardController extends Controller
         $user = auth()->user();
         
         $totalSpent = Transaction::where('user_id', $user->id)
-                                ->where('status', 'paid')
+                                ->whereIn('status', ['paid', 'confirmed', 'assigned', 'courier_accepted', 'admin_handed_over', 'shipped', 'delivered', 'completed'])
                                 ->sum('total_price');
                                 
         $totalOrders = Transaction::where('user_id', $user->id)

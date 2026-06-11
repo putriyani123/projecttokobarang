@@ -62,9 +62,22 @@ class CheckoutController extends Controller
         }
     }
 
+    $request->validate([
+        'address_id' => 'required|exists:addresses,id',
+    ]);
+
+    // Pastikan alamat milik user yang sedang login
+    $address = \App\Models\Address::where('id', $request->address_id)
+        ->where('user_id', auth()->id())
+        ->first();
+
+    if (!$address) {
+        return response()->json(['error' => 'Alamat tidak valid atau bukan milik Anda.'], 400);
+    }
+
     $transaction = \App\Models\Transaction::create([
         'user_id' => auth()->id(),
-        'address_id' => $request->address_id ?? 1, // Default address for now
+        'address_id' => $address->id,
         'total_price' => $total,
         'status' => 'pending',
         'midtrans_order_id' => 'CART-' . uniqid(),

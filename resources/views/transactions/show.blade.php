@@ -253,10 +253,19 @@
                 </div>
                 @endforeach
 
-                @if($transaction->tracking_number || $transaction->delivery_date || $transaction->proof_of_delivery)
+                @if($transaction->courier_id || $transaction->tracking_number || $transaction->delivery_date || $transaction->proof_of_delivery)
                     <div class="mt-5 pt-5 border-t border-pink-50/40 space-y-3 bg-pink-50/10 p-5 rounded-2xl">
                         <h4 class="text-xs font-bold uppercase tracking-wider text-pink-600">Info Pengiriman</h4>
                         
+                        @if($transaction->courier_id)
+                            <div class="text-xs text-gray-600 flex items-center gap-2">
+                                <span>🛵</span> 
+                                <span>Kurir:</span> 
+                                <strong class="text-gray-800">{{ $transaction->courier->name }}</strong>
+                                <span class="text-gray-500 italic">({{ $transaction->courier->base_address ?? 'Wilayah belum diatur' }})</span>
+                            </div>
+                        @endif
+
                         @if($transaction->tracking_number)
                             <div class="text-xs text-gray-600 flex items-center gap-2">
                                 <span>🚚</span> 
@@ -388,25 +397,63 @@
 
                 @php
                     $rawAddress = '';
+                    $fallbackAddress = '';
                     if($transaction->address) {
                         $rawAddress = ($transaction->address->detail_address ?? '') . ', ' . ($transaction->address->village ?? '') . ', ' . ($transaction->address->district ?? '') . ', ' . ($transaction->address->city ?? '') . ', ' . ($transaction->address->province ?? '');
+                        $fallbackAddress = ($transaction->address->district ?? '') . ', ' . ($transaction->address->city ?? '') . ', ' . ($transaction->address->province ?? '');
                     }
                 @endphp
 
                 var addressQuery = "{{ $rawAddress }}";
+                var fallbackQuery = "{{ $fallbackAddress }}";
                 
-                if (addressQuery.trim() !== "") {
-                    fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(addressQuery))
-                        .then(res => res.json())
-                        .then(data => {
-                            if (data && data.length > 0) {
-                                destLatLng = L.latLng(data[0].lat, data[0].lon);
-                                L.marker(destLatLng, {icon: destIcon}).addTo(map).bindPopup('Lokasi Pengiriman: Rumah Anda').openPopup();
-                                map.setView(destLatLng, 13);
-                            }
-                        })
-                        .catch(err => console.error("Geocoding error", err));
+                function updateRoute(courierLat, courierLng) {
+                    if (destLatLng) {
+                        if (!routingControl) {
+                            routingControl = L.Routing.control({
+                                waypoints: [
+                                    L.latLng(courierLat, courierLng),
+                                    destLatLng
+                                ],
+                                lineOptions: {
+                                    styles: [{color: '#2563EB', opacity: 0.8, weight: 6}] // Warna biru rute ala gojek
+                                },
+                                createMarker: function() { return null; }, 
+                                fitSelectedRoutes: true,
+                                show: false
+                            }).addTo(map);
+                        } else {
+                            routingControl.setWaypoints([
+                                L.latLng(courierLat, courierLng),
+                                destLatLng
+                            ]);
+                        }
+                    }
                 }
+                
+                function geocodeAddress(query, isFallback = false) {
+                    if (query.trim() !== "") {
+                        fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(query))
+                            .then(res => res.json())
+                            .then(data => {
+                                if (data && data.length > 0) {
+                                    destLatLng = L.latLng(data[0].lat, data[0].lon);
+                                    L.marker(destLatLng, {icon: destIcon}).addTo(map).bindPopup('Lokasi Pengiriman: Rumah Anda').openPopup();
+                                    if (courierMarker) {
+                                        updateRoute(courierMarker.getLatLng().lat, courierMarker.getLatLng().lng);
+                                    } else {
+                                        map.setView(destLatLng, 13);
+                                    }
+                                } else if (!isFallback && fallbackQuery.trim() !== "") {
+                                    console.log("Geocoding failed for full address, trying fallback:", fallbackQuery);
+                                    geocodeAddress(fallbackQuery, true);
+                                }
+                            })
+                            .catch(err => console.error("Geocoding error", err));
+                    }
+                }
+
+                geocodeAddress(addressQuery);
 
                 function fetchCourierLocation() {
                     fetch('{{ route("transaction.courier_location", $transaction->id) }}')
@@ -428,25 +475,7 @@
                                 }
 
                                 if (destLatLng) {
-                                    if (!routingControl) {
-                                        routingControl = L.Routing.control({
-                                            waypoints: [
-                                                L.latLng(data.latitude, data.longitude),
-                                                destLatLng
-                                            ],
-                                            lineOptions: {
-                                                styles: [{color: '#2563EB', opacity: 0.8, weight: 6}] // Warna biru rute ala gojek
-                                            },
-                                            createMarker: function() { return null; }, 
-                                            fitSelectedRoutes: true,
-                                            show: false
-                                        }).addTo(map);
-                                    } else {
-                                        routingControl.setWaypoints([
-                                            L.latLng(data.latitude, data.longitude),
-                                            destLatLng
-                                        ]);
-                                    }
+                                    updateRoute(data.latitude, data.longitude);
                                 } else {
                                     map.setView(latlng, 15);
                                 }

@@ -92,25 +92,60 @@
 
             var destLatLng = null;
             var routingControl = null;
-            
-            // Geocoding alamat tujuan dengan Nominatim
-            var addressQuery = "{{ $rawAddress }}";
-            fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(addressQuery))
-                .then(res => res.json())
-                .then(data => {
-                    if (data && data.length > 0) {
-                        destLatLng = L.latLng(data[0].lat, data[0].lon);
-                        L.marker(destLatLng, {icon: destIcon}).addTo(map).bindPopup('Tujuan: {{ $transaction->user->name ?? "Pelanggan" }}').openPopup();
-                        
-                        // Centering ke tujuan sementara lokasi kurir belum didapat
-                        map.setView(destLatLng, 13);
-                    } else {
-                        console.log("Alamat tidak ditemukan oleh geocoder. Menggunakan fallback center.");
-                    }
-                })
-                .catch(err => console.error("Geocoding error", err));
-
             var courierMarker = null;
+
+            @php
+                $rawAddress = '';
+                $fallbackAddress = '';
+                if($transaction->address) {
+                    $rawAddress = ($transaction->address->detail_address ?? '') . ', ' . ($transaction->address->village ?? '') . ', ' . ($transaction->address->district ?? '') . ', ' . ($transaction->address->city ?? '') . ', ' . ($transaction->address->province ?? '');
+                    $fallbackAddress = ($transaction->address->district ?? '') . ', ' . ($transaction->address->city ?? '') . ', ' . ($transaction->address->province ?? '');
+                }
+            @endphp
+            
+            var addressQuery = "{{ $rawAddress }}";
+            var fallbackQuery = "{{ $fallbackAddress }}";
+
+            function updateRouteKurir(lat, lng) {
+                if (destLatLng) {
+                    if (!routingControl) {
+                        routingControl = L.Routing.control({
+                            waypoints: [ L.latLng(lat, lng), destLatLng ],
+                            lineOptions: { styles: [{color: '#2563EB', opacity: 0.8, weight: 6}] },
+                            createMarker: function() { return null; },
+                            fitSelectedRoutes: true,
+                            show: false
+                        }).addTo(map);
+                    } else {
+                        routingControl.setWaypoints([ L.latLng(lat, lng), destLatLng ]);
+                    }
+                }
+            }
+
+            function geocodeAddress(query, isFallback = false) {
+                if (query.trim() !== "") {
+                    fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(query))
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data && data.length > 0) {
+                                destLatLng = L.latLng(data[0].lat, data[0].lon);
+                                L.marker(destLatLng, {icon: destIcon}).addTo(map).bindPopup('Tujuan: {{ $transaction->user->name ?? "Pelanggan" }}').openPopup();
+                                
+                                if (courierMarker) {
+                                    updateRouteKurir(courierMarker.getLatLng().lat, courierMarker.getLatLng().lng);
+                                } else {
+                                    map.setView(destLatLng, 13);
+                                }
+                            } else if (!isFallback && fallbackQuery.trim() !== "") {
+                                geocodeAddress(fallbackQuery, true);
+                            } else {
+                                console.log("Alamat tidak ditemukan oleh geocoder.");
+                            }
+                        })
+                        .catch(err => console.error("Geocoding error", err));
+                }
+            }
+            geocodeAddress(addressQuery);
 
             if (navigator.geolocation) {
                 navigator.geolocation.watchPosition(function(position) {
@@ -125,27 +160,8 @@
                         courierMarker.setLatLng(latlng);
                     }
 
-                    // Jika tujuan sudah ketemu kordinatnya, update rute
                     if (destLatLng) {
-                        if (!routingControl) {
-                            routingControl = L.Routing.control({
-                                waypoints: [
-                                    L.latLng(lat, lng),
-                                    destLatLng
-                                ],
-                                lineOptions: {
-                                    styles: [{color: '#2563EB', opacity: 0.8, weight: 6}] // Warna biru rute ala gojek
-                                },
-                                createMarker: function() { return null; }, // Jangan buat marker bawaan, kita pakai custom marker
-                                fitSelectedRoutes: true,
-                                show: false
-                            }).addTo(map);
-                        } else {
-                            routingControl.setWaypoints([
-                                L.latLng(lat, lng),
-                                destLatLng
-                            ]);
-                        }
+                        updateRouteKurir(lat, lng);
                     } else {
                         map.setView(latlng, 15);
                     }

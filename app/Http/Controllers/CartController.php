@@ -14,7 +14,8 @@ class CartController extends Controller
         $cart = Cart::with('items.product')->firstOrCreate(
             ['user_id' => auth()->id()]
         );
-        return view('cart.index', compact('cart'));
+        $addresses = \App\Models\Address::where('user_id', auth()->id())->get();
+        return view('cart.index', compact('cart', 'addresses'));
     }
 
     public function add(Request $request)

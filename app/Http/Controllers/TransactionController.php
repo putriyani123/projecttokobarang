@@ -70,10 +70,15 @@ class TransactionController extends Controller
         $addressId = $request->address_id;
         if (!$addressId) {
             if (auth()->check()) {
-                $firstAddress = \App\Models\Address::where('user_id', auth()->id())->first();
-                $addressId = $firstAddress ? $firstAddress->id : 1;
+                $latestAddress = \App\Models\Address::where('user_id', auth()->id())->latest()->first();
+                if ($latestAddress) {
+                    $addressId = $latestAddress->id;
+                } else {
+                    return response()->json(['error' => 'Silakan tambah alamat pengiriman terlebih dahulu.'], 400);
+                }
             } else {
-                $addressId = 1;
+                // For guest, we might need a default or error. Since we only support authenticated users for addresses:
+                return response()->json(['error' => 'Silakan login dan tambah alamat pengiriman.'], 400);
             }
         }
 

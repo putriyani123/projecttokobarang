@@ -14,7 +14,8 @@ class AddCourierIdToTransactionsTable extends Migration
     public function up()
     {
         Schema::table('transactions', function (Blueprint $table) {
-            //
+            $table->unsignedBigInteger('courier_id')->nullable()->after('user_id');
+            $table->foreign('courier_id')->references('id')->on('users')->onDelete('set null');
         });
     }
 
@@ -26,7 +27,8 @@ class AddCourierIdToTransactionsTable extends Migration
     public function down()
     {
         Schema::table('transactions', function (Blueprint $table) {
-            //
+            $table->dropForeign(['courier_id']);
+            $table->dropColumn('courier_id');
         });
     }
 }

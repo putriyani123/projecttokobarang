@@ -25,11 +25,14 @@ class ProductController extends Controller
     {
         $request->validate([
             'name'=>'required',
-            'price'=>'required|numeric',
+            'price'=>'required|numeric|min:1000',
             'discount'=>'nullable|numeric|min:0|max:100',
             'stock'=>'required|numeric',
             'category_id'=>'required',
+            'description'=>'nullable|string',
             'image'=>'nullable|image|mimes:jpg,jpeg,png|max:2048'
+        ], [
+            'price.min' => 'Harga harus dalam Rupiah penuh (minimal Rp 1.000). Contoh: 50000, bukan 50.',
         ]);
 
         $imagePath = null;
@@ -44,6 +47,7 @@ class ProductController extends Controller
             'price' => $request->price,
             'discount' => $request->discount ?? 0,
             'stock' => $request->stock,
+            'description' => $request->description,
             'category_id' => $request->category_id,
             'image' => $imagePath,
             'is_custom' => $request->is_custom ?? false,
@@ -60,11 +64,14 @@ class ProductController extends Controller
 
         $request->validate([
             'name'=>'required',
-            'price'=>'required|numeric',
+            'price'=>'required|numeric|min:1000',
             'discount'=>'nullable|numeric|min:0|max:100',
             'stock'=>'required|numeric',
             'category_id'=>'required',
+            'description'=>'nullable|string',
             'image'=>'nullable|image|mimes:jpg,jpeg,png|max:2048'
+        ], [
+            'price.min' => 'Harga harus dalam Rupiah penuh (minimal Rp 1.000). Contoh: 50000, bukan 50.',
         ]);
 
         $imagePath = $data->image;
@@ -85,6 +92,7 @@ class ProductController extends Controller
             'price' => $request->price,
             'discount' => $request->discount ?? 0,
             'stock' => $request->stock,
+            'description' => $request->description,
             'category_id' => $request->category_id,
             'image' => $imagePath,
             'is_custom' => $request->is_custom ?? false,

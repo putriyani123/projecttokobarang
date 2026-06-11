@@ -19,7 +19,7 @@ class ProfileController extends Controller
         $totalOrders = Transaction::where('user_id', $user->id)->count();
 
         $totalSpent = Transaction::where('user_id', $user->id)
-                                  ->where('status', 'paid')
+                                  ->whereIn('status', ['paid', 'confirmed', 'assigned', 'courier_accepted', 'admin_handed_over', 'shipped', 'delivered', 'completed'])
                                   ->sum('total_price');
 
         $totalAddresses = $user->addresses()->count();
